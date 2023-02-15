@@ -10,10 +10,10 @@ logger = logging.getLogger('HTTPHandler')
 
 T = TypeVar('T')
 
-createRequestCallback = Callable[[Request, T], T]
-listRequestCallback = Callable[[Request, Optional[Dict], Optional[int]], List[T]]
-findRequestCallback = Callable[[Request, str], T]
-updateRequestCallback = Callable[[Request, str, Dict], T]
+postRequestCallback = Callable[[Request, T], T]
+getManyRequestCallback = Callable[[Request, Optional[Dict], Optional[int]], List[T]]
+getOneRequestCallback = Callable[[Request, str], T]
+putRequestCallback = Callable[[Request, str, Dict], T]
 deleteRequestCallback = Callable[[Request, str], bool]
 jsonRequestCallback = Callable[[Request, str], T]
 
@@ -24,13 +24,13 @@ class RequestType(CoopEnum):
     DELETE = 'DELETE'
     PUT = 'PUT'
 
-def create_request_handler(request: Request, item: T, on_create_callback: createRequestCallback) -> T:
+def post_request_handler(request: Request, item: T, on_post_callback: postRequestCallback) -> T:
     code = None
     msg = None
     er = None
 
     try:
-        ret = on_create_callback(request, item)
+        ret = on_post_callback(request, item)
         logger.info(f"Creation Successful for item {item}")
 
         if type(ret) != type(item):
@@ -56,13 +56,13 @@ def create_request_handler(request: Request, item: T, on_create_callback: create
                                 detail=msg) from er
 
 
-def list_request_handler(request: Request, on_list_callback: listRequestCallback, query: Dict = None, limit: int = None) -> List[T]:
+def getmany_request_handler(request: Request, on_getmany_callback: getManyRequestCallback, query: Dict = None, limit: int = None) -> List[T]:
     code = None
     msg = None
     er = None
 
     try:
-        return on_list_callback(request, query, limit)
+        return on_getmany_callback(request, query, limit)
     except Exception as e:
         code = status.HTTP_500_INTERNAL_SERVER_ERROR
         msg = f"Unhandled error [{type(e)}]: {e}"
@@ -74,12 +74,12 @@ def list_request_handler(request: Request, on_list_callback: listRequestCallback
                                 detail=msg) from er
 
 
-def find_request_handler(id: str, request: Request, obj_type: type, on_find_callback: findRequestCallback) -> List[T]:
+def getone_request_handler(id: str, request: Request, obj_type: type, on_getone_callback: getOneRequestCallback) -> List[T]:
     code = None
     msg = None
 
     try:
-        return on_find_callback(request, id)
+        return on_getone_callback(request, id)
     except errors.NotFoundException as e:
         code = status.HTTP_404_NOT_FOUND
         msg = f"{obj_type.__name__} with ID {id} not found. {e}"
@@ -93,9 +93,9 @@ def find_request_handler(id: str, request: Request, obj_type: type, on_find_call
                                 detail=msg)
 
 
-def update_request_handler(request: Request, id: str, update_values: Dict, obj_type: type, on_update_callback: updateRequestCallback):
+def put_request_handler(request: Request, id: str, update_values: Dict, obj_type: type, on_put_callback: putRequestCallback):
     try:
-        updated_item = on_update_callback(request, id, update_values)
+        updated_item = on_put_callback(request, id, update_values)
         logger.info(f"Update Successful for item {updated_item} with new values {update_values}")
         return updated_item
     except errors.NotFoundException:

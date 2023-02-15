@@ -3,31 +3,32 @@ from coopapi import http_request_handlers as hrh
 from typing import Any, Dict, List, Callable, Tuple
 from fastapi import APIRouter
 from pydantic.dataclasses import dataclass as pydataclass, Field
+from dataclasses import dataclass, field
 import json
 from urllib.parse import parse_qs
 import logging
 
 logger = logging.getLogger('APIHandler')
 
-def create_route(create_callback: hrh.createRequestCallback,
-                 schema: type):
+def post_route(create_callback: hrh.postRequestCallback,
+               schema: type):
     def create(request: Request, item: schema = Body(...)) -> schema:
-        ret = hrh.create_request_handler(request=request,
-                                      item=item,
-                                      on_create_callback=create_callback
-                                          )
+        ret = hrh.post_request_handler(request=request,
+                                       item=item,
+                                       on_post_callback=create_callback
+                                       )
 
         return ret
     return create
 
-def update_route(update_callback: hrh.updateRequestCallback,
-                 schema: type):
+def put_route(update_callback: hrh.putRequestCallback,
+              schema: type):
     def update(request: Request, id: str, update_values: Dict = Body(...)) -> schema:
-        return hrh.update_request_handler(request=request,
-                                      id=id,
-                                      obj_type=schema,
-                                      update_values=update_values,
-                                      on_update_callback=update_callback)
+        return hrh.put_request_handler(request=request,
+                                       id=id,
+                                       obj_type=schema,
+                                       update_values=update_values,
+                                       on_put_callback=update_callback)
     return update
 
 def delete_route(delete_callback: hrh.deleteRequestCallback,
@@ -41,89 +42,93 @@ def delete_route(delete_callback: hrh.deleteRequestCallback,
                                           redirect_url=redirect_url)
     return delete
 
-def find_route(find_callback: hrh.findRequestCallback,
+def getone_route(find_callback: hrh.getOneRequestCallback,
                  schema: type):
     def find(request: Request, id: str) -> schema:
-        return hrh.find_request_handler(id=id,
-                                        request=request,
-                                        obj_type=schema,
-                                        on_find_callback=find_callback)
+        return hrh.getone_request_handler(id=id,
+                                          request=request,
+                                          obj_type=schema,
+                                          on_getone_callback=find_callback)
     return find
 
-def list_route(list_callback: hrh.listRequestCallback,
-                 schema: type):
+def getmany_route(list_callback: hrh.getManyRequestCallback,
+                  schema: type):
     def list(request: Request, query: str = None, limit: int = 100) -> List[schema]:
         if query is not None:
             query = json.loads(query)
-        ret = hrh.list_request_handler(request,
-                                        on_list_callback=list_callback,
-                                        query=query,
-                                        limit=limit)
+        ret = hrh.getmany_request_handler(request,
+                                          on_getmany_callback=list_callback,
+                                          query=query,
+                                          limit=limit)
         return ret
     return list
 
 
 dirtyCleaner = Callable[[Dict], Dict]
 
-def dirty_create_route(create_callback: hrh.createRequestCallback,
-                       schema: type,
-                       cleaner: dirtyCleaner):
-    def dirty_create_route(request: Request, dirty_str: str = Body(...)) -> schema:
+def dirty_post_route(create_callback: hrh.postRequestCallback,
+                     schema: type,
+                     cleaner: dirtyCleaner):
+    def dirty_post_route(request: Request, dirty_str: str = Body(...)) -> schema:
         dirty_data = parse_qs(dirty_str)
         clean_data = cleaner(dirty_data)
         logger.info(f"Received Data: {dirty_str}\n"
                     f"Cleaned Data: {clean_data}")
 
         obj = schema(**clean_data)
-        ret = hrh.create_request_handler(request=request,
-                                      item=obj,
-                                      on_create_callback=create_callback
-                                      )
+        ret = hrh.post_request_handler(request=request,
+                                       item=obj,
+                                       on_post_callback=create_callback
+                                       )
 
         return ret
-    return dirty_create_route
+    return dirty_post_route
 
-class Config:
-    arbitrary_types_allowed = True
+# class Config:
+#     arbitrary_types_allowed = True
 
-@pydataclass(config=Config)
+@dataclass
 class ApiShell:
-    target_schema: type = Field(...)
-    base_route: str = Field(...)
-    on_create_callback: hrh.createRequestCallback = Field(default=None)
-    on_update_callback: hrh.updateRequestCallback = Field(default=None)
-    on_delete_callback: hrh.deleteRequestCallback = Field(default=None)
-    on_find_callback: hrh.findRequestCallback = Field(default=None)
-    on_list_callback: hrh.listRequestCallback = Field(default=None)
-    dirty_create: dirtyCleaner = Field(default=None)
-    router: APIRouter = Field(default_factory=APIRouter)
+    target_schema: type
+    base_route: str
+    on_post_callback: hrh.postRequestCallback = field(default=None)
+    on_put_callback: hrh.putRequestCallback = field(default=None)
+    on_delete_callback: hrh.deleteRequestCallback = field(default=None)
+    on_getone_callback: hrh.getOneRequestCallback = field(default=None)
+    on_getmany_callback: hrh.getManyRequestCallback = field(default=None)
+    dirty_create: dirtyCleaner = field(default=None)
+    router: APIRouter = field(default_factory=APIRouter)
 
 
-    def __post_init_post_parse__(self):
+    def __post_init__(self):
         self.register_routes()
         print(f"{self.base_route} routes registered")
+
+    # def __post_init_post_parse__(self):
+    #     self.register_routes()
+    #     print(f"{self.base_route} routes registered")
 
     def register_routes(self):
         '''
         Basic CRUD api_routers routes
         '''
         # create route
-        if self.on_create_callback is not None:
+        if self.on_post_callback is not None:
             self.router.add_api_route(
                 f"{self.base_route}/api/",
-                create_route(self.on_create_callback, schema=self.target_schema),
+                post_route(self.on_post_callback, schema=self.target_schema),
                 methods=['POST'],
-                response_description=f"Created a new {self.target_schema.__name__}",
+                response_description=f"POST a new {self.target_schema.__name__}",
                 response_model=self.target_schema,
                 status_code=status.HTTP_201_CREATED)
 
         # update route
-        if self.on_update_callback is not None:
+        if self.on_put_callback is not None:
             self.router.add_api_route(
                 f"{self.base_route}/api/{{id}}",
-                update_route(update_callback=self.on_update_callback, schema=self.target_schema),
+                put_route(update_callback=self.on_put_callback, schema=self.target_schema),
                 methods=['PUT'],
-                response_description=f"Update a {self.target_schema.__name__}",
+                response_description=f"PUT a {self.target_schema.__name__}",
                 response_model=self.target_schema,
                 status_code=status.HTTP_202_ACCEPTED
             )
@@ -134,28 +139,28 @@ class ApiShell:
                 f"{self.base_route}/api/{{id}}",
                 delete_route(delete_callback=self.on_delete_callback, schema=self.target_schema),
                 methods=['DELETE'],
-                response_description=f"Delete a {self.target_schema.__name__}",
+                response_description=f"DELETE a {self.target_schema.__name__}",
                 response_model=bool,
                 status_code=status.HTTP_200_OK
             )
 
         # find route
-        if self.on_find_callback is not None:
+        if self.on_getone_callback is not None:
             self.router.add_api_route(
                 f"{self.base_route}/api/{{id}}",
-                find_route(find_callback=self.on_find_callback, schema=self.target_schema),
+                getone_route(find_callback=self.on_getone_callback, schema=self.target_schema),
                 methods=['GET'],
-                response_description=f"Get a single {self.target_schema.__name__} by id",
+                response_description=f"GET a single {self.target_schema.__name__} by id",
                 response_model=self.target_schema,
                 status_code=status.HTTP_200_OK)
 
         # list route
-        if self.on_list_callback is not None:
+        if self.on_getmany_callback is not None:
             self.router.add_api_route(
                 f"{self.base_route}/api/",
-                list_route(list_callback=self.on_list_callback, schema=self.target_schema),
+                getmany_route(list_callback=self.on_getmany_callback, schema=self.target_schema),
                 methods=['GET'],
-                response_description=f"List all {self.target_schema.__name__}s",
+                response_description=f"GET all {self.target_schema.__name__}s",
                 response_model=List[self.target_schema],
                 status_code=status.HTTP_200_OK
             )
@@ -183,12 +188,12 @@ class ApiShell:
         the endpoints
         '''
         if self.dirty_create is not None:
-            if self.on_create_callback is None:
+            if self.on_post_callback is None:
                 raise NotImplementedError(f"Cannot supply a dirty create without an on_create_callback")
 
             self.router.add_api_route(
                 f"{self.base_route}/dirty/",
-                dirty_create_route(create_callback=self.on_create_callback, schema=self.target_schema, cleaner=self.dirty_create),
+                dirty_post_route(create_callback=self.on_post_callback, schema=self.target_schema, cleaner=self.dirty_create),
                 methods=['POST'],
                 response_description=f"Create a {self.target_schema.__name__}",
                 response_model=self.target_schema,
@@ -217,5 +222,5 @@ if __name__ == "__main__":
         facade_handler=ledger_facade_handler
     )
 
-    cb: hrh.createRequestCallback = lambda req, T: next(iter(ledger_collection_handler.add_items([T])))
+    cb: hrh.postRequestCallback = lambda req, T: next(iter(ledger_collection_handler.add_items([T])))
     shell = ApiShell(schema=LedgerSchema, on_create_callback=cb)

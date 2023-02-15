@@ -1,8 +1,8 @@
 from coopapi.apiShell import ApiShell
-from coopapi.http_request_handlers import findRequestCallback, \
-    createRequestCallback, \
+from coopapi.http_request_handlers import getOneRequestCallback, \
+    postRequestCallback, \
     deleteRequestCallback, \
-    updateRequestCallback, \
+    putRequestCallback, \
     jsonRequestCallback, \
-    listRequestCallback
+    getManyRequestCallback
 from coopapi.errors import DuplicateException, NotFoundException
