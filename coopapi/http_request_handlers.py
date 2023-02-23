@@ -1,10 +1,9 @@
 from coopapi import errors as errors
 import logging
 from fastapi import Request, HTTPException, status
-from typing import List, Dict, Callable, TypeVar, Optional
+from typing import List, Dict, Callable, TypeVar, Optional, Any
 import pydantic
 from starlette.responses import RedirectResponse
-from cooptools.coopEnum import CoopEnum
 
 logger = logging.getLogger('HTTPHandler')
 
@@ -16,13 +15,6 @@ getOneRequestCallback = Callable[[Request, str], T]
 putRequestCallback = Callable[[Request, str, Dict], T]
 deleteRequestCallback = Callable[[Request, str], bool]
 jsonRequestCallback = Callable[[Request, str], T]
-
-
-class RequestType(CoopEnum):
-    POST = 'POST'
-    GET = 'GET'
-    DELETE = 'DELETE'
-    PUT = 'PUT'
 
 def post_request_handler(request: Request, item: T, on_post_callback: postRequestCallback) -> T:
     code = None
