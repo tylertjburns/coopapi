@@ -8,6 +8,7 @@ from coopapi.enums import RequestType
 
 logger = logging.getLogger('coop.http')
 
+
 def _response_handler(response: Response):
     pass
 
@@ -27,7 +28,7 @@ def request(url: str,
             loggingLvl=logging.INFO,
             label: str = None,
             request_id: str = None,
-            **kwargs):
+            **kwargs) -> Response:
     headers = {}
     if bearer_token is not None:
         headers['Authorization'] = f"Bearer {bearer_token}"
@@ -44,7 +45,7 @@ def get(url: str,
         bearer_token:str = None,
         loggingLvl=logging.INFO,
         label: str = None,
-        **kwargs):
+        **kwargs) -> Response:
     return request(url=url,
                    method=RequestType.GET,
                    bearer_token=bearer_token,
@@ -57,7 +58,7 @@ def post(url: str,
          json: str,
          label: str = None,
          loggingLvl=logging.INFO,
-         bearer_token: str = None):
+         bearer_token: str = None) -> Response:
     return request(url=url,
                    method=RequestType.POST,
                    bearer_token=bearer_token,
@@ -70,7 +71,7 @@ def put(url: str,
          data: Dict = None,
          label: str = None,
          loggingLvl=logging.INFO,
-         bearer_token: str = None):
+         bearer_token: str = None) -> Response:
     return request(url=url,
                    method=RequestType.PUT,
                    bearer_token=bearer_token,
@@ -82,7 +83,7 @@ def patch(url: str,
          data: Dict = None,
          label: str = None,
          loggingLvl=logging.INFO,
-         bearer_token: str = None):
+         bearer_token: str = None) -> Response:
     return request(url=url,
                    method=RequestType.PATCH,
                    bearer_token=bearer_token,
@@ -94,7 +95,7 @@ def delete(url: str,
          data: Dict = None,
          label: str = None,
          loggingLvl=logging.INFO,
-         bearer_token: str = None):
+         bearer_token: str = None) -> Response:
     return request(url=url,
                    method=RequestType.DELETE,
                    bearer_token=bearer_token,
@@ -106,7 +107,7 @@ def head(url: str,
          data: Dict = None,
          label: str = None,
          loggingLvl=logging.INFO,
-         bearer_token: str = None):
+         bearer_token: str = None) -> Response:
     return request(url=url,
                    method=RequestType.HEAD,
                    bearer_token=bearer_token,
@@ -118,7 +119,7 @@ def options(url: str,
          data: Dict = None,
          label: str = None,
          loggingLvl=logging.INFO,
-         bearer_token: str = None):
+         bearer_token: str = None) -> Response:
     return request(url=url,
                    method=RequestType.OPTIONS,
                    bearer_token=bearer_token,
@@ -129,3 +130,4 @@ def options(url: str,
 if __name__ == "__main__":
     logging.basicConfig(level=logging.DEBUG)
     ret = get(url='https://w3schools.com/python/demopage.htm')
+    print(ret)
