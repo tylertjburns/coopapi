@@ -2,29 +2,35 @@ import logging
 import uuid
 
 import requests
-from typing import Dict
+from typing import Dict, Any
 from fastapi import Request, HTTPException, status, Response
 from coopapi.enums import RequestType
-
+import json
+import pprint
 logger = logging.getLogger('coop.http')
 
 
 def _response_handler(response: Response):
     pass
 
-def _log_send(id:str, lvl: int, method: RequestType, url, label: str = None):
+def _log_send(id:str, lvl: int, method: RequestType, url, label: str = None, **kwargs):
     _lbl_txt = f"[{label}]: " if label else ""
-    logger.log(lvl, f"{_lbl_txt}{method.name} @URL: {url} [{id}]")
+    _txt = f"{_lbl_txt}{method.name} @URL: {url} [{id}]"
+    if kwargs.get('data', None) is not None:
+        _txt += f"\ndata: {pprint.pformat(kwargs['data'])}"
+    if kwargs.get('json', None) is not None:
+        _txt += f"\njson: {pprint.pformat(kwargs['json'])}"
+
+    logger.log(lvl, _txt)
 
 def _log_receive(id:str, lvl:int , method: RequestType, response: Response, url, label: str = None):
     _lbl_txt = f"[{label}]: " if label else ""
-    resp_dict = {'content': response.content}
-    logger.log(lvl, f"{_lbl_txt}{method.name} @URL: {url} returned {response.status_code} [{id}] in {int(response.elapsed.microseconds / 1000)} ms\n"
-                     f"{resp_dict}")
+    logger.log(lvl, f"{_lbl_txt}{method.name} @URL: {url} returned [{response.status_code}] [{id}] in {int(response.elapsed.microseconds / 1000)} ms\n"
+                     f"{pprint.pformat(json.loads(response.content.decode(response.encoding)))}")
 
 def request(url: str,
             method: RequestType,
-            bearer_token:str,
+            bearer_token:str=None,
             loggingLvl=logging.INFO,
             label: str = None,
             request_id: str = None,
@@ -35,7 +41,7 @@ def request(url: str,
 
     if request_id is None:
         request_id = str(uuid.uuid4())
-    _log_send(id=request_id, lvl=loggingLvl, method=method, url=url, label=label)
+    _log_send(id=request_id, lvl=loggingLvl, method=method, url=url, label=label, **kwargs)
     response: Response = requests.request(method=method.value, url=url, verify=True, headers=headers, **kwargs)
     _log_receive(id=request_id, lvl=loggingLvl, method=method, url=url, label=label, response=response)
     return response
@@ -54,18 +60,19 @@ def get(url: str,
                    **kwargs)
 
 def post(url: str,
-         data: Dict,
-         json: str,
+         data: Dict = None,
+         json_serializable: Any = None,
          label: str = None,
          loggingLvl=logging.INFO,
          bearer_token: str = None) -> Response:
+
     return request(url=url,
                    method=RequestType.POST,
                    bearer_token=bearer_token,
                    loggingLvl=loggingLvl,
                    label=label,
                    data=data,
-                   json=json)
+                   json=json_serializable)
 
 def put(url: str,
          data: Dict = None,
